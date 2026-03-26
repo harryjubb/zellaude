@@ -193,8 +193,7 @@ impl ZellijPlugin for State {
                     Ok(p) => p,
                     Err(_) => return false,
                 };
-                event_handler::handle_hook_event(self, payload);
-                true
+                event_handler::handle_hook_event(self, payload)
             }
             "zellaude:focus" => {
                 // Notification click — focus the requested pane
@@ -206,8 +205,10 @@ impl ZellijPlugin for State {
                 false
             }
             "zellaude:request" => {
-                // Another instance asking for state — respond with ours
-                self.broadcast_sessions();
+                // Another instance asking for state — respond with ours (skip if empty to avoid N^3 storm on resume)
+                if !self.sessions.is_empty() {
+                    self.broadcast_sessions();
+                }
                 false
             }
             "zellaude:settings" => {

@@ -1,6 +1,7 @@
 use crate::state::{Activity, FlashMode, HookPayload, SessionInfo, State};
 
-pub fn handle_hook_event(state: &mut State, payload: HookPayload) {
+/// Returns `true` if the event changed visible state and a render is needed.
+pub fn handle_hook_event(state: &mut State, payload: HookPayload) -> bool {
     // Capture env info for use in notifications
     if let Some(ref name) = payload.zellij_session {
         state.zellij_session_name = Some(name.clone());
@@ -11,10 +12,9 @@ pub fn handle_hook_event(state: &mut State, payload: HookPayload) {
 
     let event = payload.hook_event.as_str();
 
-    // SessionEnd → remove session
+    // SessionEnd → remove session (only triggers render if session existed)
     if event == "SessionEnd" {
-        state.sessions.remove(&payload.pane_id);
-        return;
+        return state.sessions.remove(&payload.pane_id).is_some();
     }
 
     let activity = match event {
@@ -26,16 +26,33 @@ pub fn handle_hook_event(state: &mut State, payload: HookPayload) {
         "UserPromptSubmit" => Activity::Thinking,
         "PermissionRequest" => Activity::Waiting,
         // Notification is informational — just refresh the timestamp, keep current activity.
+        // No render needed: the timer will pick up the updated timestamp.
         "Notification" => {
             if let Some(session) = state.sessions.get_mut(&payload.pane_id) {
                 session.last_event_ts = crate::state::unix_now();
             }
-            return;
+            return false;
         }
         "Stop" => Activity::Done,
         "SubagentStop" => Activity::AgentDone,
         _ => Activity::Idle,
     };
+
+    // Skip render if activity hasn't changed
+    if let Some(existing) = state.sessions.get(&payload.pane_id) {
+        if existing.activity == activity {
+            // Still update timestamp and metadata even if we skip the render
+            let session = state.sessions.get_mut(&payload.pane_id).unwrap();
+            session.last_event_ts = crate::state::unix_now();
+            if let Some(sid) = &payload.session_id {
+                session.session_id = sid.clone();
+            }
+            if let Some(cwd) = payload.cwd {
+                session.cwd = Some(cwd);
+            }
+            return false;
+        }
+    }
 
     let (tab_index, tab_name) = state
         .pane_to_tab
@@ -87,6 +104,8 @@ pub fn handle_hook_event(state: &mut State, payload: HookPayload) {
         session.tab_index = Some(idx);
         session.tab_name = Some(name);
     }
+
+    true
 }
 
 #[cfg(test)]
