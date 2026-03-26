@@ -57,7 +57,7 @@ Add the plugin to your Zellij layout — that's it:
 ```kdl
 default_tab_template {
     pane size=1 borderless=true {
-        plugin location="https://github.com/ishefi/zellaude/releases/latest/download/zellaude.wasm"
+        plugin location="https://github.com/harryjubb/zellaude/releases/latest/download/zellaude.wasm"
     }
     children
 }
@@ -70,7 +70,7 @@ On first load, the plugin automatically installs the hook script and registers i
 Prerequisites: [Rust](https://rustup.rs) (in addition to the above)
 
 ```bash
-git clone https://github.com/ishefi/zellaude.git
+git clone https://github.com/harryjubb/zellaude.git
 cd zellaude
 ./install.sh
 ```
