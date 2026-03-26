@@ -6,14 +6,14 @@ use std::fmt::Write;
 use std::io::Write as IoWrite;
 use zellij_tile::prelude::{InputMode, TabInfo};
 
-struct Style {
-    symbol: &'static str,
-    r: u8,
-    g: u8,
-    b: u8,
+pub struct Style {
+    pub symbol: &'static str,
+    pub r: u8,
+    pub g: u8,
+    pub b: u8,
 }
 
-fn activity_priority(activity: &Activity) -> u8 {
+pub fn activity_priority(activity: &Activity) -> u8 {
     match activity {
         Activity::Waiting => 8,
         Activity::Tool(_) => 7,
@@ -27,7 +27,7 @@ fn activity_priority(activity: &Activity) -> u8 {
     }
 }
 
-fn activity_style(activity: &Activity) -> Style {
+pub fn activity_style(activity: &Activity) -> Style {
     match activity {
         Activity::Init => Style { symbol: "◆", r: 180, g: 175, b: 195 },
         Activity::Thinking => Style { symbol: "●", r: 180, g: 140, b: 255 },
@@ -51,33 +51,33 @@ fn activity_style(activity: &Activity) -> Style {
     }
 }
 
-fn fg(r: u8, g: u8, b: u8) -> String {
+pub fn fg(r: u8, g: u8, b: u8) -> String {
     format!("\x1b[38;2;{r};{g};{b}m")
 }
 
-fn bg(r: u8, g: u8, b: u8) -> String {
+pub fn bg(r: u8, g: u8, b: u8) -> String {
     format!("\x1b[48;2;{r};{g};{b}m")
 }
 
-fn display_width(s: &str) -> usize {
+pub fn display_width(s: &str) -> usize {
     s.chars().count()
 }
 
-const RESET: &str = "\x1b[0m";
-const BOLD: &str = "\x1b[1m";
-const ELAPSED_THRESHOLD: u64 = 30;
-const SEPARATOR: &str = "\u{e0b0}";
+pub const RESET: &str = "\x1b[0m";
+pub const BOLD: &str = "\x1b[1m";
+pub const ELAPSED_THRESHOLD: u64 = 30;
+pub const SEPARATOR: &str = "\u{e0b0}";
 
-type Color = (u8, u8, u8);
-const BAR_BG: Color = (30, 30, 46);
-const PREFIX_BG: Color = (60, 50, 80);
-const PREFIX_BG_SETTINGS: Color = (100, 70, 140);
-const TAB_BG_ACTIVE: Color = (140, 100, 200);
-const TAB_BG_INACTIVE: Color = (80, 75, 110);
-const FLASH_BG_BRIGHT: Color = (80, 80, 30);
+pub type Color = (u8, u8, u8);
+pub const BAR_BG: Color = (30, 30, 46);
+pub const PREFIX_BG: Color = (60, 50, 80);
+pub const PREFIX_BG_SETTINGS: Color = (100, 70, 140);
+pub const TAB_BG_ACTIVE: Color = (140, 100, 200);
+pub const TAB_BG_INACTIVE: Color = (80, 75, 110);
+pub const FLASH_BG_BRIGHT: Color = (80, 80, 30);
 
 /// Write a powerline arrow: fg=from_bg, bg=to_bg, then separator char.
-fn arrow(buf: &mut String, col: &mut usize, from: Color, to: Color) {
+pub fn arrow(buf: &mut String, col: &mut usize, from: Color, to: Color) {
     let _ = write!(
         buf,
         "{}{}{SEPARATOR}",
@@ -87,7 +87,7 @@ fn arrow(buf: &mut String, col: &mut usize, from: Color, to: Color) {
     *col += 1;
 }
 
-fn format_elapsed(secs: u64) -> String {
+pub fn format_elapsed(secs: u64) -> String {
     if secs < 60 {
         format!("{secs}s")
     } else if secs < 3600 {
@@ -97,7 +97,7 @@ fn format_elapsed(secs: u64) -> String {
     }
 }
 
-fn mode_style(mode: InputMode) -> (Color, &'static str) {
+pub fn mode_style(mode: InputMode) -> (Color, &'static str) {
     match mode {
         InputMode::Normal => ((80, 200, 120), "NORMAL"),
         InputMode::Locked => ((255, 80, 80), "LOCKED"),
@@ -219,7 +219,7 @@ pub fn render_status_bar(state: &mut State, _rows: usize, cols: usize) {
     let _ = std::io::stdout().flush();
 }
 
-fn render_tabs(
+pub fn render_tabs(
     state: &mut State,
     buf: &mut String,
     col: &mut usize,
@@ -319,7 +319,7 @@ fn render_tabs(
                 state
                     .flash_deadlines
                     .get(&s.pane_id)
-                    .map(|&deadline| now_ms < deadline && (now_ms / 250) % 2 == 0)
+                    .map(|&deadline| now_ms < deadline && (now_ms / 250).is_multiple_of(2))
                     .unwrap_or(false)
             });
 
@@ -452,7 +452,7 @@ fn render_tabs(
     }
 }
 
-fn notify_mode_label(mode: NotifyMode) -> (&'static str, &'static str, String, String) {
+pub fn notify_mode_label(mode: NotifyMode) -> (&'static str, &'static str, String, String) {
     match mode {
         NotifyMode::Always => ("●", "Notify: always", fg(80, 200, 120), fg(255, 255, 255)),
         NotifyMode::Unfocused => ("◐", "Notify: unfocused", fg(255, 200, 60), fg(255, 200, 60)),
@@ -460,7 +460,7 @@ fn notify_mode_label(mode: NotifyMode) -> (&'static str, &'static str, String, S
     }
 }
 
-fn flash_mode_label(mode: FlashMode) -> (&'static str, &'static str, String, String) {
+pub fn flash_mode_label(mode: FlashMode) -> (&'static str, &'static str, String, String) {
     match mode {
         FlashMode::Persist => ("●", "Flash: persist", fg(80, 200, 120), fg(255, 255, 255)),
         FlashMode::Once => ("◐", "Flash: brief", fg(255, 200, 60), fg(255, 200, 60)),
@@ -470,7 +470,8 @@ fn flash_mode_label(mode: FlashMode) -> (&'static str, &'static str, String, Str
 
 /// Render a three-state toggle and register its click region.
 /// Assumes the caller has already set the desired background color.
-fn render_tristate(
+#[allow(clippy::too_many_arguments)]
+pub fn render_tristate(
     buf: &mut String,
     col: &mut usize,
     state_regions: &mut Vec<MenuClickRegion>,
@@ -493,7 +494,7 @@ fn render_tristate(
     let _ = write!(buf, "{sym_color}{symbol} {label_color}{label}");
 }
 
-fn render_settings_menu(state: &mut State, buf: &mut String, col: &mut usize) {
+pub fn render_settings_menu(state: &mut State, buf: &mut String, col: &mut usize) {
     // Leading space after arrow
     let _ = write!(buf, " ");
     *col += 1;
@@ -549,4 +550,206 @@ fn render_settings_menu(state: &mut State, buf: &mut String, col: &mut usize) {
         end_col: *col,
         action: MenuAction::CloseMenu,
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // --- format_elapsed ---
+
+    #[test]
+    fn format_elapsed_seconds() {
+        assert_eq!(format_elapsed(0), "0s");
+        assert_eq!(format_elapsed(1), "1s");
+        assert_eq!(format_elapsed(59), "59s");
+    }
+
+    #[test]
+    fn format_elapsed_minutes() {
+        assert_eq!(format_elapsed(60), "1m");
+        assert_eq!(format_elapsed(119), "1m");
+        assert_eq!(format_elapsed(120), "2m");
+        assert_eq!(format_elapsed(3599), "59m");
+    }
+
+    #[test]
+    fn format_elapsed_hours() {
+        assert_eq!(format_elapsed(3600), "1h");
+        assert_eq!(format_elapsed(7200), "2h");
+        assert_eq!(format_elapsed(86400), "24h");
+    }
+
+    // --- activity_priority ---
+
+    #[test]
+    fn activity_priority_ordering() {
+        assert!(activity_priority(&Activity::Waiting) > activity_priority(&Activity::Tool("x".into())));
+        assert!(activity_priority(&Activity::Tool("x".into())) > activity_priority(&Activity::Thinking));
+        assert!(activity_priority(&Activity::Thinking) > activity_priority(&Activity::Prompting));
+        assert!(activity_priority(&Activity::Prompting) > activity_priority(&Activity::Notification));
+        assert!(activity_priority(&Activity::Notification) > activity_priority(&Activity::Init));
+        assert!(activity_priority(&Activity::Init) > activity_priority(&Activity::Done));
+        assert!(activity_priority(&Activity::Done) > activity_priority(&Activity::AgentDone));
+        assert!(activity_priority(&Activity::AgentDone) > activity_priority(&Activity::Idle));
+    }
+
+    #[test]
+    fn activity_priority_idle_is_zero() {
+        assert_eq!(activity_priority(&Activity::Idle), 0);
+    }
+
+    #[test]
+    fn activity_priority_waiting_is_highest() {
+        assert_eq!(activity_priority(&Activity::Waiting), 8);
+    }
+
+    // --- activity_style ---
+
+    #[test]
+    fn activity_style_all_variants_return_nonempty_symbol() {
+        let variants = vec![
+            Activity::Init,
+            Activity::Thinking,
+            Activity::Tool("Bash".to_string()),
+            Activity::Tool("Read".to_string()),
+            Activity::Tool("Edit".to_string()),
+            Activity::Tool("WebSearch".to_string()),
+            Activity::Tool("Task".to_string()),
+            Activity::Tool("Unknown".to_string()),
+            Activity::Prompting,
+            Activity::Waiting,
+            Activity::Notification,
+            Activity::Done,
+            Activity::AgentDone,
+            Activity::Idle,
+        ];
+        for v in &variants {
+            let style = activity_style(v);
+            assert!(!style.symbol.is_empty(), "empty symbol for {v:?}");
+        }
+    }
+
+    #[test]
+    fn activity_style_tool_dispatch() {
+        assert_eq!(activity_style(&Activity::Tool("Bash".into())).symbol, "⚡");
+        assert_eq!(activity_style(&Activity::Tool("Read".into())).symbol, "◉");
+        assert_eq!(activity_style(&Activity::Tool("Glob".into())).symbol, "◉");
+        assert_eq!(activity_style(&Activity::Tool("Grep".into())).symbol, "◉");
+        assert_eq!(activity_style(&Activity::Tool("Edit".into())).symbol, "✎");
+        assert_eq!(activity_style(&Activity::Tool("Write".into())).symbol, "✎");
+        assert_eq!(activity_style(&Activity::Tool("Task".into())).symbol, "⊜");
+        assert_eq!(activity_style(&Activity::Tool("WebSearch".into())).symbol, "◈");
+        assert_eq!(activity_style(&Activity::Tool("WebFetch".into())).symbol, "◈");
+        assert_eq!(activity_style(&Activity::Tool("Other".into())).symbol, "⚙");
+    }
+
+    // --- mode_style ---
+
+    #[test]
+    fn mode_style_all_variants() {
+        let modes = [
+            InputMode::Normal,
+            InputMode::Locked,
+            InputMode::Pane,
+            InputMode::Tab,
+            InputMode::Resize,
+            InputMode::Move,
+            InputMode::Scroll,
+            InputMode::EnterSearch,
+            InputMode::Search,
+            InputMode::RenameTab,
+            InputMode::RenamePane,
+            InputMode::Session,
+            InputMode::Prompt,
+            InputMode::Tmux,
+        ];
+        for mode in modes {
+            let (color, label) = mode_style(mode);
+            assert!(!label.is_empty(), "empty label for {mode:?}");
+            // Colors should be non-zero (at least one component)
+            assert!(color.0 > 0 || color.1 > 0 || color.2 > 0);
+        }
+    }
+
+    #[test]
+    fn mode_style_normal_is_green() {
+        let (color, label) = mode_style(InputMode::Normal);
+        assert_eq!(label, "NORMAL");
+        assert_eq!(color, (80, 200, 120));
+    }
+
+    // --- fg / bg ---
+
+    #[test]
+    fn fg_produces_correct_ansi() {
+        assert_eq!(fg(255, 0, 128), "\x1b[38;2;255;0;128m");
+    }
+
+    #[test]
+    fn bg_produces_correct_ansi() {
+        assert_eq!(bg(30, 30, 46), "\x1b[48;2;30;30;46m");
+    }
+
+    // --- display_width ---
+
+    #[test]
+    fn display_width_ascii() {
+        assert_eq!(display_width("hello"), 5);
+        assert_eq!(display_width(""), 0);
+    }
+
+    #[test]
+    fn display_width_unicode() {
+        assert_eq!(display_width("●"), 1);
+        assert_eq!(display_width("⚡"), 1);
+        assert_eq!(display_width("✎"), 1);
+    }
+
+    // --- arrow ---
+
+    #[test]
+    fn arrow_writes_separator_and_increments_col() {
+        let mut buf = String::new();
+        let mut col = 0;
+        arrow(&mut buf, &mut col, (255, 0, 0), (0, 255, 0));
+        assert_eq!(col, 1);
+        assert!(buf.contains(SEPARATOR));
+        assert!(buf.contains("38;2;255;0;0")); // fg from
+        assert!(buf.contains("48;2;0;255;0")); // bg to
+    }
+
+    // --- notify_mode_label ---
+
+    #[test]
+    fn notify_mode_labels() {
+        let (sym, label, _, _) = notify_mode_label(NotifyMode::Always);
+        assert_eq!(sym, "●");
+        assert!(label.contains("always"));
+
+        let (sym, label, _, _) = notify_mode_label(NotifyMode::Unfocused);
+        assert_eq!(sym, "◐");
+        assert!(label.contains("unfocused"));
+
+        let (sym, label, _, _) = notify_mode_label(NotifyMode::Never);
+        assert_eq!(sym, "○");
+        assert!(label.contains("off"));
+    }
+
+    // --- flash_mode_label ---
+
+    #[test]
+    fn flash_mode_labels() {
+        let (sym, label, _, _) = flash_mode_label(FlashMode::Persist);
+        assert_eq!(sym, "●");
+        assert!(label.contains("persist"));
+
+        let (sym, label, _, _) = flash_mode_label(FlashMode::Once);
+        assert_eq!(sym, "◐");
+        assert!(label.contains("brief"));
+
+        let (sym, label, _, _) = flash_mode_label(FlashMode::Off);
+        assert_eq!(sym, "○");
+        assert!(label.contains("off"));
+    }
 }

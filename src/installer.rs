@@ -4,7 +4,7 @@ use zellij_tile::prelude::run_command;
 const HOOK_VERSION_TAG: &str = concat!("# zellaude v", env!("CARGO_PKG_VERSION"));
 
 /// Generate hook script content with version tag inserted after the shebang.
-fn hook_script_content() -> String {
+pub fn hook_script_content() -> String {
     let original = include_str!("../scripts/zellaude-hook.sh");
     // Insert version tag after the shebang line
     if let Some(pos) = original.find('\n') {
@@ -75,6 +75,49 @@ jq --argjson events "$EVENTS" --argjson entry "$ENTRY" '
 
 echo "installed"
 "##;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn hook_script_content_has_version_tag() {
+        let content = hook_script_content();
+        assert!(
+            content.contains(HOOK_VERSION_TAG),
+            "version tag missing from hook script"
+        );
+    }
+
+    #[test]
+    fn hook_script_content_has_shebang_first() {
+        let content = hook_script_content();
+        assert!(content.starts_with("#!/"), "hook script should start with shebang");
+    }
+
+    #[test]
+    fn version_tag_after_shebang() {
+        let content = hook_script_content();
+        let lines: Vec<&str> = content.lines().collect();
+        assert!(lines.len() >= 2);
+        assert!(lines[0].starts_with("#!/"));
+        assert_eq!(lines[1], HOOK_VERSION_TAG);
+    }
+
+    #[test]
+    fn version_tag_contains_package_version() {
+        assert!(
+            HOOK_VERSION_TAG.contains(env!("CARGO_PKG_VERSION")),
+            "version tag should contain package version"
+        );
+    }
+
+    #[test]
+    fn install_template_references_hook_placeholders() {
+        assert!(INSTALL_TEMPLATE.contains("__VERSION_TAG__"));
+        assert!(INSTALL_TEMPLATE.contains("__HOOK_SCRIPT__"));
+    }
+}
 
 /// Run the idempotent hook installation command.
 /// Checks if hooks are current, writes the hook script, and registers hooks.

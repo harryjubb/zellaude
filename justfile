@@ -13,6 +13,20 @@ install: build
     mkdir -p {{plugin_dir}}
     cp target/wasm32-wasip1/release/zellaude.wasm {{plugin_dir}}/zellaude.wasm
 
+host_target := "aarch64-apple-darwin"
+
+# Run all tests on host target (lib unit tests + integration tests)
+test:
+    cargo test --lib --tests --target {{host_target}}
+
+# Run tests quietly (minimal output)
+test-quiet:
+    cargo test --lib --tests --target {{host_target}} -q
+
+# Run criterion benchmarks on host target
+bench:
+    cargo bench --benches --target {{host_target}}
+
 # Run clippy lints
 lint:
     cargo clippy --target wasm32-wasip1 -- -D warnings
