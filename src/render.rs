@@ -140,11 +140,8 @@ pub fn render_status_bar(state: &mut State, _rows: usize, cols: usize) {
     // Bail early if terminal is too narrow
     if cols < 5 {
         let _ = write!(buf, "{bar_bg_str}{:width$}{RESET}", "", width = cols);
-        if buf != state.last_rendered {
-            state.last_rendered = buf.clone();
-            print!("{buf}");
-            let _ = std::io::stdout().flush();
-        }
+        print!("{buf}");
+        let _ = std::io::stdout().flush();
         return;
     }
 
@@ -215,11 +212,8 @@ pub fn render_status_bar(state: &mut State, _rows: usize, cols: usize) {
     }
     let _ = write!(buf, "{RESET}");
 
-    if buf != state.last_rendered {
-        state.last_rendered = buf.clone();
-        print!("{buf}");
-        let _ = std::io::stdout().flush();
-    }
+    print!("{buf}");
+    let _ = std::io::stdout().flush();
 }
 
 pub fn render_tabs(

@@ -162,8 +162,9 @@ pub struct State {
     pub menu_click_regions: Vec<MenuClickRegion>,
     pub config_loaded: bool,
     pub hooks_installed: bool,
-    /// Cached render output — skip I/O when unchanged
-    pub last_rendered: String,
+    /// Snapshot of elapsed display strings from last render — used by timer to
+    /// detect whether elapsed text actually changed (avoids redundant renders).
+    pub last_elapsed_snapshot: Vec<String>,
 }
 
 impl State {
@@ -230,15 +231,36 @@ impl State {
         self.flash_deadlines.len() != before
     }
 
-    pub fn has_elapsed_display(&self) -> bool {
+    /// Returns true only when the visible elapsed time text has changed since the last check.
+    /// This avoids redundant 1Hz renders when elapsed text stays the same (e.g. "2m" for 60s).
+    pub fn has_elapsed_display_changed(&mut self) -> bool {
         if !self.settings.elapsed_time {
+            if !self.last_elapsed_snapshot.is_empty() {
+                self.last_elapsed_snapshot.clear();
+                return true;
+            }
             return false;
         }
         let now = unix_now();
-        self.sessions.values().any(|s| {
-            !matches!(s.activity, Activity::Idle)
-                && now.saturating_sub(s.last_event_ts) >= DONE_TIMEOUT
-        })
+        let mut current: Vec<String> = self
+            .sessions
+            .values()
+            .filter(|s| {
+                !matches!(s.activity, Activity::Idle)
+                    && now.saturating_sub(s.last_event_ts) >= DONE_TIMEOUT
+            })
+            .map(|s| {
+                let elapsed = now.saturating_sub(s.last_event_ts);
+                format!("{}:{}", s.pane_id, crate::render::format_elapsed(elapsed))
+            })
+            .collect();
+        current.sort();
+        if current != self.last_elapsed_snapshot {
+            self.last_elapsed_snapshot = current;
+            true
+        } else {
+            false
+        }
     }
 
     pub fn merge_sessions(&mut self, incoming: BTreeMap<u32, SessionInfo>) {
@@ -651,44 +673,74 @@ mod tests {
     }
 
     #[test]
-    fn has_elapsed_display_false_when_disabled() {
+    fn has_elapsed_display_changed_false_when_disabled() {
         let mut state = State::default();
         state.settings.elapsed_time = false;
         state
             .sessions
             .insert(1, make_session(1, Activity::Thinking, 1));
-        assert!(!state.has_elapsed_display());
+        assert!(!state.has_elapsed_display_changed());
     }
 
     #[test]
-    fn has_elapsed_display_true_for_old_non_idle() {
+    fn has_elapsed_display_changed_true_for_old_non_idle() {
         let mut state = State::default();
         state.settings.elapsed_time = true;
         state
             .sessions
             .insert(1, make_session(1, Activity::Thinking, 1)); // very old
-        assert!(state.has_elapsed_display());
+        // First call: snapshot is empty, current has entries → changed
+        assert!(state.has_elapsed_display_changed());
     }
 
     #[test]
-    fn has_elapsed_display_false_for_idle() {
+    fn has_elapsed_display_changed_false_on_second_call() {
+        let mut state = State::default();
+        state.settings.elapsed_time = true;
+        state
+            .sessions
+            .insert(1, make_session(1, Activity::Thinking, 1)); // very old
+        // First call populates snapshot
+        assert!(state.has_elapsed_display_changed());
+        // Second call within same second → no change
+        assert!(!state.has_elapsed_display_changed());
+    }
+
+    #[test]
+    fn has_elapsed_display_changed_false_for_idle() {
         let mut state = State::default();
         state.settings.elapsed_time = true;
         state
             .sessions
             .insert(1, make_session(1, Activity::Idle, 1));
-        assert!(!state.has_elapsed_display());
+        assert!(!state.has_elapsed_display_changed());
     }
 
     #[test]
-    fn has_elapsed_display_false_for_recent() {
+    fn has_elapsed_display_changed_false_for_recent() {
         let mut state = State::default();
         state.settings.elapsed_time = true;
         let now = unix_now();
         state
             .sessions
             .insert(1, make_session(1, Activity::Thinking, now));
-        assert!(!state.has_elapsed_display());
+        assert!(!state.has_elapsed_display_changed());
+    }
+
+    #[test]
+    fn has_elapsed_display_changed_true_when_disabled_clears_snapshot() {
+        let mut state = State::default();
+        state.settings.elapsed_time = true;
+        state
+            .sessions
+            .insert(1, make_session(1, Activity::Thinking, 1));
+        // Populate snapshot
+        state.has_elapsed_display_changed();
+        // Disable → should return true (clearing snapshot triggers re-render)
+        state.settings.elapsed_time = false;
+        assert!(state.has_elapsed_display_changed());
+        // Second call → false (already cleared)
+        assert!(!state.has_elapsed_display_changed());
     }
 
     #[test]

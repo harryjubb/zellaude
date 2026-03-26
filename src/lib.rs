@@ -158,7 +158,7 @@ impl ZellijPlugin for State {
                 } else {
                     set_timeout(TIMER_INTERVAL);
                 }
-                has_flashes || stale_changed || flash_changed || self.has_elapsed_display()
+                has_flashes || stale_changed || flash_changed || self.has_elapsed_display_changed()
             }
             Event::PermissionRequestResult(_) => {
                 // Now that permissions are granted, mark as non-selectable
