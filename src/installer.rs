@@ -48,29 +48,19 @@ fi
 # Back up settings before modifying
 cp "$SETTINGS" "$SETTINGS.bak"
 
-# Remove ALL existing zellaude hook entries (any path ending in zellaude-hook.sh)
-tmp=$(mktemp)
-jq '
-  if .hooks and (.hooks | type == "object") then
-    .hooks |= with_entries(
-      .value |= [
-        .[] | . as $group |
-        ($group.hooks // []) | map(select((.command // "") | endswith("zellaude-hook.sh") | not)) |
-        . as $filtered |
-        if length > 0 then ($group | .hooks = $filtered) else empty end
-      ]
-    ) | .hooks |= with_entries(select(.value | length > 0)) |
-    if .hooks == {} then del(.hooks) else . end
-  else . end
-' "$SETTINGS" > "$tmp" && mv "$tmp" "$SETTINGS"
-
-# Add new hook entries
+# Atomically remove old zellaude hooks and add new ones in a single jq pass
 EVENTS='["PreToolUse","PostToolUse","PostToolUseFailure","UserPromptSubmit","PermissionRequest","Notification","Stop","SubagentStop","SessionStart","SessionEnd"]'
-ENTRY=$(jq -nc --arg cmd "$HOOK_PATH" '[{"hooks": [{"type": "command", "command": $cmd, "timeout": 5, "async": true}]}]')
+ENTRY='[{"hooks": [{"type": "command", "command": "'"$HOOK_PATH"'", "timeout": 5, "async": true}]}]'
 tmp=$(mktemp)
 jq --argjson events "$EVENTS" --argjson entry "$ENTRY" '
+  # Remove old zellaude entries and add new ones atomically
   .hooks //= {} |
-  reduce ($events[]) as $event (.; .hooks[$event] = (.hooks[$event] // []) + $entry)
+  reduce ($events[]) as $event (.;
+    .hooks[$event] = [
+      ((.hooks[$event] // [])[] |
+        select((.hooks // []) | all((.command // "") | endswith("zellaude-hook.sh") | not)))
+    ] + $entry
+  )
 ' "$SETTINGS" > "$tmp" && mv "$tmp" "$SETTINGS"
 
 echo "installed"
