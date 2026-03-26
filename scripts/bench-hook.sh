@@ -98,9 +98,9 @@ run_bench "PermissionRequest" "$PERMISSION_PAYLOAD" "$ITERATIONS"
 run_bench "Notification" "$NOTIFICATION_PAYLOAD" "$ITERATIONS"
 
 echo ""
-echo "Note: PreToolUse/PostToolUse use 5 jq processes each."
-echo "      PermissionRequest uses 6 jq processes + osascript."
-echo "      After P0 fix, expect ~80% reduction in per-call time."
+echo "Note: PreToolUse/PostToolUse use 2 jq processes each (consolidated from 5)."
+echo "      PermissionRequest uses 2 jq + settings read + osascript."
+echo "      Notification exits early after 2 jq + zellij pipe (skips notification logic)."
 
 # If hyperfine is available, run a more rigorous benchmark
 if command -v hyperfine >/dev/null 2>&1; then
