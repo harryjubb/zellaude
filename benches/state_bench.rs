@@ -74,10 +74,44 @@ fn bench_settings_serde(c: &mut Criterion) {
     });
 }
 
+/// P1: broadcast_sessions serialization cost at various session counts.
+/// After "skip empty broadcasts" fix, N=0 is eliminated entirely.
+fn bench_session_serialization(c: &mut Criterion) {
+    let mut group = c.benchmark_group("session_serialization");
+    for n in [0u32, 10, 50] {
+        let sessions: std::collections::BTreeMap<u32, SessionInfo> = (0..n)
+            .map(|i| {
+                (
+                    i,
+                    SessionInfo {
+                        session_id: format!("s{i}"),
+                        pane_id: i,
+                        activity: Activity::Thinking,
+                        tab_name: Some(format!("tab{}", i % 5)),
+                        tab_index: Some((i % 5) as usize),
+                        last_event_ts: 1700000000 + i as u64,
+                        cwd: Some("/tmp".to_string()),
+                    },
+                )
+            })
+            .collect();
+
+        group.bench_with_input(
+            BenchmarkId::new("sessions", n),
+            &sessions,
+            |b, sessions| {
+                b.iter(|| serde_json::to_string(black_box(sessions)).unwrap())
+            },
+        );
+    }
+    group.finish();
+}
+
 criterion_group!(
     benches,
     bench_cleanup_stale_sessions,
     bench_cleanup_expired_flashes,
-    bench_settings_serde
+    bench_settings_serde,
+    bench_session_serialization
 );
 criterion_main!(benches);

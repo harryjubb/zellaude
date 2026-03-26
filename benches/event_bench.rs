@@ -111,10 +111,33 @@ fn bench_build_pane_to_tab_map(c: &mut Criterion) {
     group.finish();
 }
 
+/// P1: Repeated same-activity event (no visible state change).
+/// After conditional render fix, handler detects no-change.
+/// This confirms the detection cost is negligible.
+fn bench_repeated_same_activity(c: &mut Criterion) {
+    c.bench_function("repeated_same_activity", |b| {
+        b.iter_batched(
+            || {
+                let mut state = State::default();
+                // Pre-populate with a Bash tool session
+                handle_hook_event(&mut state, make_payload(1, "PreToolUse", Some("Bash")));
+                state
+            },
+            |mut state| {
+                // Send the same event again — activity doesn't change
+                let payload = make_payload(1, "PreToolUse", Some("Bash"));
+                handle_hook_event(black_box(&mut state), payload);
+            },
+            criterion::BatchSize::SmallInput,
+        )
+    });
+}
+
 criterion_group!(
     benches,
     bench_handle_hook_event,
     bench_session_merge,
-    bench_build_pane_to_tab_map
+    bench_build_pane_to_tab_map,
+    bench_repeated_same_activity
 );
 criterion_main!(benches);

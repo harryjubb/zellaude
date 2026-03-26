@@ -27,6 +27,10 @@ test-quiet:
 bench:
     cargo bench --benches --target {{host_target}}
 
+# Run hook script benchmark (measures jq spawning overhead)
+bench-hook iterations="100":
+    ./scripts/bench-hook.sh {{iterations}}
+
 # Run clippy lints
 lint:
     cargo clippy --target wasm32-wasip1 -- -D warnings
