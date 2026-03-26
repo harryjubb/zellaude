@@ -162,6 +162,8 @@ pub struct State {
     pub menu_click_regions: Vec<MenuClickRegion>,
     pub config_loaded: bool,
     pub hooks_installed: bool,
+    /// Cached render output — skip I/O when unchanged
+    pub last_rendered: String,
 }
 
 impl State {
