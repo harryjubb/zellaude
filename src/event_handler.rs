@@ -39,16 +39,15 @@ pub fn handle_hook_event(state: &mut State, payload: HookPayload) -> bool {
     };
 
     // Skip render if activity hasn't changed
-    if let Some(existing) = state.sessions.get(&payload.pane_id) {
+    if let Some(existing) = state.sessions.get_mut(&payload.pane_id) {
         if existing.activity == activity {
             // Still update timestamp and metadata even if we skip the render
-            let session = state.sessions.get_mut(&payload.pane_id).unwrap();
-            session.last_event_ts = crate::state::unix_now();
+            existing.last_event_ts = crate::state::unix_now();
             if let Some(sid) = &payload.session_id {
-                session.session_id = sid.clone();
+                existing.session_id = sid.clone();
             }
             if let Some(cwd) = payload.cwd {
-                session.cwd = Some(cwd);
+                existing.cwd = Some(cwd);
             }
             return false;
         }
