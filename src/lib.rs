@@ -168,8 +168,14 @@ impl ZellijPlugin for State {
                 // Now that permissions are granted, mark as non-selectable
                 // so the plugin stays visible during fullscreen
                 set_selectable(false);
-                // Permissions granted — ask existing instances for their state
-                self.request_sync();
+                // Ask existing instances for their state — but only if we have none.
+                // On reattach Zellij re-fires PermissionRequestResult for all N running
+                // instances; if they all request sync, every instance with sessions
+                // responds to every request (O(N²) pipe messages). Skip when we already
+                // have sessions to avoid this storm.
+                if self.sessions.is_empty() {
+                    self.request_sync();
+                }
                 // Retry config load (the one in load() may have been dropped
                 // because it ran before permissions were granted)
                 if !self.config_loaded {
