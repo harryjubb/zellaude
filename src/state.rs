@@ -165,6 +165,9 @@ pub struct State {
     /// Snapshot of elapsed display strings from last render — used by timer to
     /// detect whether elapsed text actually changed (avoids redundant renders).
     pub last_elapsed_snapshot: Vec<String>,
+    /// Timestamp (ms) of the last Timer event — used to detect whether the
+    /// timer chain is alive and prevent duplicate chains from stacking.
+    pub last_timer_event_ms: u64,
 }
 
 impl State {

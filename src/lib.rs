@@ -44,6 +44,7 @@ impl ZellijPlugin for State {
             EventType::PermissionRequestResult,
             EventType::Visible, // restart timer chain on resurrection / reconnect
         ]);
+        self.last_timer_event_ms = state::unix_now_ms();
         set_timeout(TIMER_INTERVAL);
 
         // Load persisted settings (may be retried in PermissionRequestResult
@@ -159,6 +160,15 @@ impl ZellijPlugin for State {
                 }
             }
             Event::Timer(_) => {
+                let now_ms = state::unix_now_ms();
+                // Deduplicate parallel timer chains: if we already processed a
+                // timer event within 200ms (80% of FLASH_TICK, the shortest
+                // legitimate interval), this is a duplicate chain — let it die
+                // by not scheduling the next tick.
+                if now_ms.saturating_sub(self.last_timer_event_ms) < 200 {
+                    return false;
+                }
+                self.last_timer_event_ms = now_ms;
                 let stale_changed = self.cleanup_stale_sessions();
                 let flash_changed = self.cleanup_expired_flashes();
                 let has_flashes = self.has_active_flashes();
@@ -190,14 +200,20 @@ impl ZellijPlugin for State {
                 if !self.hooks_installed {
                     installer::run_install();
                 }
-                false
+                true
             }
             Event::Visible(visible) => {
                 if visible {
-                    // Restart timer chain in case it died during session resurrection.
-                    // Zellij may restore WASM state without calling load() again, which
-                    // would leave the set_timeout chain dead and the bar frozen.
-                    set_timeout(TIMER_INTERVAL);
+                    // Restart timer chain only if it appears dead. Calling set_timeout()
+                    // unconditionally would fork a new parallel chain on every tab switch,
+                    // causing exponential timer accumulation and progressive lag.
+                    let now_ms = state::unix_now_ms();
+                    let chain_dead =
+                        now_ms.saturating_sub(self.last_timer_event_ms) > 2000;
+                    if chain_dead {
+                        self.last_timer_event_ms = now_ms;
+                        set_timeout(TIMER_INTERVAL);
+                    }
                     true
                 } else {
                     false
