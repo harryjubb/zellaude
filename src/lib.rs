@@ -19,7 +19,7 @@ use state::{HookPayload, MenuAction, SessionInfo, Settings, State, ViewMode};
 use std::collections::BTreeMap;
 use zellij_tile::prelude::*;
 
-const TIMER_INTERVAL: f64 = 1.0;
+const TIMER_INTERVAL: f64 = 0.25;
 const FLASH_TICK: f64 = 0.25;
 
 impl ZellijPlugin for State {
@@ -97,9 +97,14 @@ impl ZellijPlugin for State {
                                 if region.is_waiting {
                                     focus_terminal_pane(region.pane_id, false);
                                 } else {
-                                    switch_tab_to(region.tab_index as u32 + 1);
+                                    let target = region.tab_index;
+                                    switch_tab_to(target as u32 + 1);
+                                    for tab in self.tabs.iter_mut() {
+                                        tab.active = tab.position == target;
+                                    }
+                                    self.active_tab_index = Some(target);
                                 }
-                                return false;
+                                return true;
                             }
                         }
                         false
