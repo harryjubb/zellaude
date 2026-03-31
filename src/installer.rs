@@ -19,6 +19,14 @@ const INSTALL_TEMPLATE: &str = r##"set -e
 HOOK_PATH="$HOME/.config/zellij/plugins/zellaude-hook.sh"
 SETTINGS="$HOME/.claude/settings.json"
 
+# Lock to prevent concurrent installs from multiple plugin instances loading simultaneously
+LOCK_DIR="/tmp/zellaude-install.lock"
+if ! mkdir "$LOCK_DIR" 2>/dev/null; then
+  echo "current"
+  exit 0
+fi
+trap 'rm -rf "$LOCK_DIR"' EXIT
+
 # Check if already current
 if grep -qF '__VERSION_TAG__' "$HOOK_PATH" 2>/dev/null; then
   if [ -f "$SETTINGS" ] && grep -qF "$HOOK_PATH" "$SETTINGS" 2>/dev/null; then

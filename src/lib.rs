@@ -24,6 +24,9 @@ const FLASH_TICK: f64 = 0.25;
 
 impl ZellijPlugin for State {
     fn load(&mut self, _configuration: BTreeMap<String, String>) {
+        // Try early — may be a no-op before permissions are granted, but ensures
+        // non-selectability during the brief init window (prevents fullscreen hiding the bar)
+        set_selectable(false);
         request_permission(&[
             PermissionType::ReadApplicationState,
             PermissionType::ChangeApplicationState,
@@ -39,6 +42,7 @@ impl ZellijPlugin for State {
             EventType::Mouse,
             EventType::RunCommandResult,
             EventType::PermissionRequestResult,
+            EventType::Visible, // restart timer chain on resurrection / reconnect
         ]);
         set_timeout(TIMER_INTERVAL);
 
@@ -176,6 +180,17 @@ impl ZellijPlugin for State {
                     installer::run_install();
                 }
                 false
+            }
+            Event::Visible(visible) => {
+                if visible {
+                    // Restart timer chain in case it died during session resurrection.
+                    // Zellij may restore WASM state without calling load() again, which
+                    // would leave the set_timeout chain dead and the bar frozen.
+                    set_timeout(TIMER_INTERVAL);
+                    true
+                } else {
+                    false
+                }
             }
             _ => false,
         }
