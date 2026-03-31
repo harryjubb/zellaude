@@ -250,7 +250,7 @@ impl State {
             .values()
             .filter(|s| {
                 !matches!(s.activity, Activity::Idle)
-                    && now.saturating_sub(s.last_event_ts) >= DONE_TIMEOUT
+                    && now.saturating_sub(s.last_event_ts) >= crate::render::ELAPSED_THRESHOLD
             })
             .map(|s| {
                 let elapsed = now.saturating_sub(s.last_event_ts);
