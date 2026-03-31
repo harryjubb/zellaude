@@ -153,7 +153,13 @@ impl ZellijPlugin for State {
                         true
                     }
                     Some("install_hooks") => {
-                        self.hooks_installed = true;
+                        let raw = String::from_utf8_lossy(&stdout);
+                        let result = raw.trim();
+                        if result == "installed" || result == "current" {
+                            self.hooks_installed = true;
+                        } else {
+                            eprintln!("[zellaude] hook install incomplete: {result}");
+                        }
                         false
                     }
                     _ => false,
